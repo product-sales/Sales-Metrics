@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales — Общий отчёт</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--white:#fff;--off:#fafafa;--line:#ebebeb;--ink:#111;--ink2:#555;--ink3:#999;--ink4:#ccc;--r:10px;--r-sm:6px;}
+  html{font-size:14px;height:100%;overflow-x:hidden;}
+  body{background:var(--off);color:var(--ink);font-family:'Sora',sans-serif;min-height:100vh;height:100%;display:flex;flex-direction:column;overflow-x:hidden;}
+  .unified-header{flex-shrink:0;position:sticky;top:0;z-index:300;background:var(--white);box-shadow:0 2px 12px rgba(0,0,0,.07);}
+  .unified-top{max-width:1520px;margin:0 auto;padding:14px 32px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  .unified-brand{display:flex;align-items:baseline;gap:10px;}
+  .unified-brand .name{font-size:18px;font-weight:600;color:var(--ink);}
+  .unified-brand .sep{color:var(--ink4);}
+  .unified-brand .sub{font-size:12px;color:var(--ink3);}
+  .unified-mode{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:500;}
+  .unified-mode .label{color:var(--ink3);}
+  .unified-mode .tabs{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;}
+  .unified-mode .tab{position:relative;z-index:1;padding:6px 18px;font-size:12.5px;font-weight:500;font-family:'Sora',sans-serif;background:var(--white);color:var(--ink2);border:none;border-right:1px solid var(--line);cursor:pointer;white-space:nowrap;}
+  .unified-mode .tab:last-child{border-right:none;}
+  .unified-mode .tab.on{background:var(--ink);color:var(--white);}
+  .unified-mode .tab:not(.on):hover{background:var(--off);color:var(--ink);}
+  .unified-frame-wrap{flex:1;min-height:400px;max-width:1520px;width:100%;margin:0 auto;padding:0;position:relative;overflow:hidden;}
+  .unified-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;background:var(--white);border-radius:0 0 var(--r) var(--r);display:block;}
+  </style>
+</head>
+<body>
+  <header class="unified-header">
+    <div class="unified-top">
+      <div class="unified-brand">
+        <span class="name">Общий отчёт</span>
+        <span class="sep">/</span>
+        <span class="sub" id="unifiedSub">Приоритетные проекты и Партнёры</span>
+      </div>
+      <div class="unified-mode">
+        <span class="label">Режим:</span>
+        <div class="tabs">
+          <button type="button" id="btnGeneral" class="tab on" onclick="setUnifiedMode('general')">Общая</button>
+          <button type="button" id="btnPriority" class="tab" onclick="setUnifiedMode('priority')">Приоритетные проекты</button>
+          <button type="button" id="btnPartners" class="tab" onclick="setUnifiedMode('partners')">Партнерское направление</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="unified-frame-wrap">
+    <iframe id="unifiedFrame" title="Дашборд" src="sales-dashboard_combined.html?embed=1"></iframe>
+  </div>
+  <script>
+  (function(){
+    var currentMode = 'general';
+    var frame = document.getElementById('unifiedFrame');
+    var btnG = document.getElementById('btnGeneral');
+    var btnP = document.getElementById('btnPriority');
+    var btnA = document.getElementById('btnPartners');
+    var sub = document.getElementById('unifiedSub');
+    function setUnifiedMode(mode){
+      if (mode === currentMode) return;
+      currentMode = mode;
+      btnG.classList.remove('on'); btnP.classList.remove('on'); btnA.classList.remove('on');
+      if (mode === 'general') {
+        frame.src = 'sales-dashboard_combined.html?embed=1';
+        btnG.classList.add('on');
+        sub.textContent = 'Приоритетные проекты и Партнёры';
+      } else if (mode === 'partners') {
+        frame.src = 'sales-dashboard_partners.html?embed=1';
+        btnA.classList.add('on');
+        sub.textContent = 'Партнерское направление';
+      } else {
+        frame.src = 'sales-dashboard_priority_projects.html?embed=1';
+        btnP.classList.add('on');
+        sub.textContent = 'Приоритетные проекты';
+      }
+    }
+    window.setUnifiedMode = setUnifiedMode;
+  })();
+  </script>
+</body>
+</html>
