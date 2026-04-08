@@ -753,6 +753,27 @@ tr:hover td { background: var(--off); }
         </div>
         <div class="stale-pagination" id="factPlanPagination"></div>
       </div>
+      <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Клиенты, которые зашли</div>
+          <button type="button" class="stale-export-btn" id="enteredToggleBtn" aria-expanded="true">Свернуть</button>
+        </div>
+        <div id="enteredDealsWrap">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="enteredStageFilter">
+              <button class="stf-btn stf-active" data-entered-stage="">Все</button>
+              <button class="stf-btn" data-entered-stage="Квалификация">Квалификация</button>
+              <button class="stf-btn" data-entered-stage="Демо">Демо</button>
+              <button class="stf-btn" data-entered-stage="Пилот">Пилот</button>
+              <button class="stf-btn" data-entered-stage="Договор">Договор</button>
+            </div>
+          </div>
+          <div class="stale-tbl-wrap">
+            <table class="stale-tbl" id="enteredDealsTable"></table>
+          </div>
+          <div class="stale-pagination" id="enteredDealsPagination"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Зависшие сделки (оформление как Пайплайн / Активность за период) -->
@@ -1534,6 +1555,7 @@ function renderFactTable(){
   if(el) el.innerHTML = head+body;
   renderPlanFactOpsMonth();
   renderFactPlanTable();
+  renderEnteredDealsTable();
 }
 
 function renderFactPlanTable(){
@@ -2803,9 +2825,130 @@ var _stalePage = 1;
 var _stalePageSize = 15;
 var _factPlanPage = 1;
 var _factPlanPageSize = 15;
+var _enteredDealsFilter = '';
+var _enteredDealsPage = 1;
+var _enteredDealsPageSize = 15;
+var _enteredDealsCollapsed = false;
 var _staleSortBy = 'amt';
 var _staleSortDir = -1;
 var STALE_STAGE_ORDER = {'Квалификация':1,'Демо':2,'Пилот':3,'Договор':4};
+var ENTERED_STAGE_ORDER = {'Квалификация':1,'Демо':2,'Пилот':3,'Договор':4};
+
+function getEnteredDealsRows(){
+  var stageNames = ['Квалификация','Демо','Пилот','Договор'];
+  var qMonths = quarterMonths(oQ);
+  var rows = [];
+  stageNames.forEach(function(stageName){
+    var stageData = STAGE_DATA && STAGE_DATA[stageName];
+    if(!stageData || !Array.isArray(stageData.all_rows)) return;
+    stageData.all_rows.forEach(function(r){
+      if(oW && r.week !== oW) return;
+      if(oY && String(r.year) !== String(oY)) return;
+      if(oM && String(r.month) !== String(parseInt(oM, 10))) return;
+      if(oQ && qMonths && qMonths.indexOf(r.month) === -1) return;
+      rows.push({
+        stage: stageName,
+        deal_name: (r.deal_name || r.company || '—'),
+        owner: (r.owner || '—'),
+        amt: Number(r.amt || 0)
+      });
+    });
+  });
+  return rows.sort(function(a,b){ return (b.amt||0) - (a.amt||0); });
+}
+
+function setEnteredDealsFilter(stage){
+  _enteredDealsFilter = stage;
+  _enteredDealsPage = 1;
+  document.querySelectorAll('#enteredStageFilter .stf-btn').forEach(function(b){
+    b.classList.toggle('stf-active', b.getAttribute('data-entered-stage') === stage);
+  });
+  renderEnteredDealsTable();
+}
+
+function setEnteredDealsCollapsed(nextCollapsed){
+  _enteredDealsCollapsed = !!nextCollapsed;
+  var wrap = document.getElementById('enteredDealsWrap');
+  var btn = document.getElementById('enteredToggleBtn');
+  if(wrap) wrap.style.display = _enteredDealsCollapsed ? 'none' : '';
+  if(btn){
+    btn.textContent = _enteredDealsCollapsed ? 'Развернуть' : 'Свернуть';
+    btn.setAttribute('aria-expanded', _enteredDealsCollapsed ? 'false' : 'true');
+  }
+}
+
+function setEnteredDealsPage(page){
+  _enteredDealsPage = Math.max(1, page);
+  renderEnteredDealsTable();
+}
+
+function setEnteredDealsPageSize(size){
+  _enteredDealsPageSize = Math.max(5, parseInt(size,10)||15);
+  _enteredDealsPage = 1;
+  renderEnteredDealsTable();
+}
+
+function renderEnteredDealsTable(){
+  var tblEl = document.getElementById('enteredDealsTable');
+  var pagEl = document.getElementById('enteredDealsPagination');
+  if(!tblEl) return;
+  var allRows = getEnteredDealsRows();
+  if(_enteredDealsFilter){
+    allRows = allRows.filter(function(r){ return r.stage === _enteredDealsFilter; });
+  }
+  allRows.sort(function(a,b){
+    var sd = (ENTERED_STAGE_ORDER[a.stage]||99) - (ENTERED_STAGE_ORDER[b.stage]||99);
+    if(sd !== 0) return sd;
+    return (b.amt||0) - (a.amt||0);
+  });
+
+  var total = allRows.length;
+  var totalPages = Math.max(1, Math.ceil(total / _enteredDealsPageSize));
+  var page = Math.min(_enteredDealsPage, totalPages);
+  if(page !== _enteredDealsPage) _enteredDealsPage = page;
+  var start = (page - 1) * _enteredDealsPageSize;
+  var rows = allRows.slice(start, start + _enteredDealsPageSize);
+  function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtAmt(v){ return (Math.round((Number(v)||0)/1e5)/10).toFixed(1).replace('.', ','); }
+  var stageColors = {'Квалификация':'#1a56ff','Демо':'#6d28d9','Пилот':'#d97706','Договор':'#0891b2'};
+
+  tblEl.innerHTML = '<thead><tr>' +
+    '<th>Название сделки</th><th>Ответственный</th><th>Этап</th><th>Сумма сделки, M₽</th>' +
+    '</tr></thead><tbody>' +
+    (rows.length ? rows.map(function(r){
+      var col = stageColors[r.stage] || '#64748b';
+      return '<tr>' +
+        '<td class="stale-name-cell">'+escHtml(r.deal_name)+'</td>' +
+        '<td style="font-size:12px;color:var(--ink2)">'+escHtml(r.owner)+'</td>' +
+        '<td><span style="color:'+col+';font-weight:700;font-size:11px">'+escHtml(r.stage)+'</span></td>' +
+        '<td style="font-weight:700;text-align:right">'+fmtAmt(r.amt)+'</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--ink3);padding:20px">Нет сделок за выбранный период</td></tr>') +
+    '</tbody>';
+
+  if(!pagEl) return;
+  if(total <= _enteredDealsPageSize){
+    pagEl.innerHTML = '<div class="stale-pag-info">Показаны все '+total+' сделок</div>';
+    return;
+  }
+  var from = start + 1, to = Math.min(start + _enteredDealsPageSize, total);
+  pagEl.innerHTML =
+    '<div class="stale-pag-info">Строки '+from+'–'+to+' из '+total+'</div>' +
+    '<div class="stale-pag-controls">' +
+      '<select class="stale-pag-size" id="enteredDealsPageSizeSelect" title="Строк на странице">' +
+        [10,15,25,50].map(function(n){ return '<option value="'+n+'"'+(n===_enteredDealsPageSize?' selected':'')+'>'+n+'</option>'; }).join('') +
+      '</select>' +
+      '<button type="button" class="stale-pag-btn" data-entered-page="prev" '+(page<=1?'disabled':'')+'>← Пред</button>' +
+      '<span class="stale-pag-num">'+page+' / '+totalPages+'</span>' +
+      '<button type="button" class="stale-pag-btn" data-entered-page="next" '+(page>=totalPages?'disabled':'')+'>След →</button>' +
+    '</div>';
+  var prevBtn = pagEl.querySelector('[data-entered-page="prev"]');
+  var nextBtn = pagEl.querySelector('[data-entered-page="next"]');
+  var sel = document.getElementById('enteredDealsPageSizeSelect');
+  if(prevBtn) prevBtn.addEventListener('click', function(){ setEnteredDealsPage(page-1); });
+  if(nextBtn) nextBtn.addEventListener('click', function(){ setEnteredDealsPage(page+1); });
+  if(sel) sel.addEventListener('change', function(){ setEnteredDealsPageSize(this.value); });
+}
 
 function setStaleSort(by){
   if(_staleSortBy === by){ _staleSortDir = -_staleSortDir; } else { _staleSortBy = by; _staleSortDir = (by === 'stage' ? 1 : -1); }
@@ -2835,6 +2978,19 @@ document.addEventListener('DOMContentLoaded', function(){
       if(btn) setStaleFilter(btn.getAttribute('data-s'));
     });
   }
+  var enteredFilterEl = document.getElementById('enteredStageFilter');
+  if(enteredFilterEl){
+    enteredFilterEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.stf-btn');
+      if(btn) setEnteredDealsFilter(btn.getAttribute('data-entered-stage'));
+    });
+  }
+  var enteredToggleBtn = document.getElementById('enteredToggleBtn');
+  if(enteredToggleBtn){
+    enteredToggleBtn.addEventListener('click', function(){
+      setEnteredDealsCollapsed(!_enteredDealsCollapsed);
+    });
+  }
   var exportBtn = document.getElementById('staleExportBtn');
   if(exportBtn) exportBtn.addEventListener('click', exportStaleCSV);
   var staleTbl = document.getElementById('staleTable');
@@ -2842,6 +2998,7 @@ document.addEventListener('DOMContentLoaded', function(){
     var th = e.target.closest('.stale-th-sort');
     if(th) setStaleSort(th.getAttribute('data-sort'));
   });
+  setEnteredDealsCollapsed(_enteredDealsCollapsed);
 });
 
 function renderStaleTable(){
