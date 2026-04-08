@@ -1132,16 +1132,63 @@ function switchTab(t){
   if(fc) fc.style.display = t==='cohort' ? '' : 'none';
   if(t==='cohort') renderCohort();
   if(t==='ops') requestAnimationFrame(()=>renderOps());
+  saveSharedFilters();
 }
 
 // ── OPERATIONAL ──
 let oY='',oM='',oW='',oQ='',oGran='week',oMetric='count';
 let oTl,oRv,oTr;
+const SHARED_FILTERS_KEY = 'sales_dashboard_shared_filters_v1';
 // ensure Chart.js handles hidden canvas correctly
 if(typeof Chart!=='undefined'){
   Chart.defaults.animation = {duration:400};
   Chart.defaults.responsive = true;
   Chart.defaults.maintainAspectRatio = false;
+}
+
+function saveSharedFilters(){
+  try{
+    var payload = {
+      oY:oY||'', oM:oM||'', oW:oW||'', oQ:oQ||'',
+      oGran:oGran||'week', oMetric:oMetric||'count',
+      currentTab:currentTab||'ops'
+    };
+    localStorage.setItem(SHARED_FILTERS_KEY, JSON.stringify(payload));
+  }catch(_e){}
+}
+
+function applySharedFilters(){
+  try{
+    var raw = localStorage.getItem(SHARED_FILTERS_KEY);
+    if(!raw) return false;
+    var f = JSON.parse(raw);
+    if(!f || typeof f !== 'object') return false;
+    var yEl = document.getElementById('oYear');
+    var mEl = document.getElementById('oMonth');
+    var wEl = document.getElementById('oWeek');
+    var qEl = document.getElementById('oQuarter');
+    if(yEl && f.oY && Array.from(yEl.options).some(function(o){return o.value===String(f.oY);})){
+      oY = String(f.oY); yEl.value = oY;
+    }
+    if(qEl && f.oQ){ oQ = String(f.oQ); qEl.value = oQ; }
+    buildOM(); buildOW();
+    if(mEl && f.oM && Array.from(mEl.options).some(function(o){return o.value===String(parseInt(f.oM,10));})){
+      oM = String(parseInt(f.oM,10)); mEl.value = oM;
+      oW = ''; if(wEl) wEl.value = '';
+      buildOW();
+    }
+    if(wEl && f.oW && Array.from(wEl.options).some(function(o){return o.value===String(f.oW);})){
+      oW = String(f.oW); wEl.value = oW;
+    }
+    if(f.oGran){ oGran = f.oGran; }
+    if(f.oMetric){ oMetric = f.oMetric; }
+    if(f.currentTab && (f.currentTab==='ops' || f.currentTab==='cohort')) switchTab(f.currentTab);
+    if(typeof setOGran==='function') setOGran(oGran);
+    if(typeof setOMetric==='function') setOMetric(oMetric);
+    return true;
+  }catch(_e){
+    return false;
+  }
 }
 
 function buildOM(){
@@ -1172,6 +1219,7 @@ function oReset(){
   ['oYear','oMonth','oWeek','oQuarter'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
   buildOM();buildOW();factGran='qtrs';_syncFactGranButtons();
   renderStageAnalysis();renderOps();renderClosedDeals();renderFactTable();renderEventsFactTable();renderPlanSection();renderStale();
+  saveSharedFilters();
 }
 
 document.getElementById('oYear').addEventListener('change',function(){
@@ -1182,18 +1230,21 @@ document.getElementById('oYear').addEventListener('change',function(){
   buildOM();buildOW();
   if(factGran!=='qtrs'){ factGran='qtrs'; _syncFactGranButtons(); }
   renderStageAnalysis();renderOps();renderClosedDeals();renderFactTable();renderPlanSection();renderStale();
+  saveSharedFilters();
 });
 document.getElementById('oMonth').addEventListener('change',function(){
   oM=this.value;oW='';document.getElementById('oWeek').value='';buildOW();
   if(oM && factGran==='qtrs'){ factGran='months'; _syncFactGranButtons(); }
   else if(!oM && factGran==='months'){ factGran='qtrs'; _syncFactGranButtons(); }
   renderStageAnalysis();renderOps();renderClosedDeals();renderFactTable();renderPlanSection();renderStale();
+  saveSharedFilters();
 });
 document.getElementById('oWeek').addEventListener('change',function(){
   oW=this.value;
   if(oW && factGran!=='weeks'){ factGran='weeks'; _syncFactGranButtons(); }
   else if(!oW && factGran==='weeks'){ factGran='months'; _syncFactGranButtons(); }
   renderStageAnalysis();renderOps();renderClosedDeals();renderFactTable();renderPlanSection();renderStale();
+  saveSharedFilters();
 });
 document.getElementById('oQuarter').addEventListener('change',function(){
   oQ=this.value;
@@ -1205,6 +1256,7 @@ document.getElementById('oQuarter').addEventListener('change',function(){
   }
   buildOM();buildOW();
   renderStageAnalysis();renderOps();renderClosedDeals();renderFactTable();renderPlanSection();renderStale();
+  saveSharedFilters();
 });
 
 function setOGran(g){
@@ -1233,6 +1285,7 @@ function setOGran(g){
   renderFactTable();
   renderEventsFactTable();
   renderPlanSection();
+  saveSharedFilters();
 }
 
 function setOMetric(m){
@@ -1247,6 +1300,7 @@ function setOMetric(m){
   renderOps();
   renderFactTable();
   renderPlanSection();
+  saveSharedFilters();
 }
 
 function getOPool(){
@@ -2927,13 +2981,10 @@ function renderEnteredDealsTable(){
     '</tbody>';
 
   if(!pagEl) return;
-  if(total <= _enteredDealsPageSize){
-    pagEl.innerHTML = '<div class="stale-pag-info">Показаны все '+total+' сделок</div>';
-    return;
-  }
-  var from = start + 1, to = Math.min(start + _enteredDealsPageSize, total);
+  var from = total ? start + 1 : 0, to = Math.min(start + _enteredDealsPageSize, total);
+  var infoText = total <= _enteredDealsPageSize && total > 0 ? 'Показаны все '+total+' сделок' : 'Строки '+from+'–'+to+' из '+total;
   pagEl.innerHTML =
-    '<div class="stale-pag-info">Строки '+from+'–'+to+' из '+total+'</div>' +
+    '<div class="stale-pag-info">'+infoText+'</div>' +
     '<div class="stale-pag-controls">' +
       '<select class="stale-pag-size" id="enteredDealsPageSizeSelect" title="Строк на странице">' +
         [10,15,25,50].map(function(n){ return '<option value="'+n+'"'+(n===_enteredDealsPageSize?' selected':'')+'>'+n+'</option>'; }).join('') +
@@ -4943,31 +4994,34 @@ function renderPredWinRate(){
 
 // init
 buildOM(); buildOW(); buildCM();
-// default filter: latest available week
-const oYearEl=document.getElementById('oYear');
-if(oYearEl && oYearEl.options.length){
-  const latestYear = oYearEl.options[oYearEl.options.length - 1].value;
-  oY = latestYear || '';
-  oYearEl.value = oY;
+if(!applySharedFilters()){
+  // default filter: latest available week
+  const oYearEl=document.getElementById('oYear');
+  if(oYearEl && oYearEl.options.length){
+    const latestYear = oYearEl.options[oYearEl.options.length - 1].value;
+    oY = latestYear || '';
+    oYearEl.value = oY;
+  }
+  buildOM();
+  buildOW();
+  const oWeekEl=document.getElementById('oWeek');
+  if(oWeekEl && oWeekEl.options.length > 1){
+    oW = oWeekEl.options[oWeekEl.options.length - 1].value;
+    oWeekEl.value = oW;
+  }
+  oM = '';
+  const oMonthEl=document.getElementById('oMonth');
+  if(oMonthEl) oMonthEl.value = '';
+  factGran='weeks';
+  oGran='week';
+  if(typeof _syncFactGranButtons==='function') _syncFactGranButtons();
 }
-buildOM();
-buildOW();
-const oWeekEl=document.getElementById('oWeek');
-if(oWeekEl && oWeekEl.options.length > 1){
-  oW = oWeekEl.options[oWeekEl.options.length - 1].value;
-  oWeekEl.value = oW;
-}
-oM = '';
-const oMonthEl=document.getElementById('oMonth');
-if(oMonthEl) oMonthEl.value = '';
-factGran='weeks';
-oGran='week';
-if(typeof _syncFactGranButtons==='function') _syncFactGranButtons();
 renderOps();
 renderClosedDeals();
 renderFactTable();
 renderEventsFactTable();
 renderPlanSection();
+saveSharedFilters();
 // default cohort view: 2026
 cY='2026';
 const cyEl=document.getElementById('cYear');
