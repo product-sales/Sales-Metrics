@@ -4786,17 +4786,26 @@ function renderPredWinRate(){
 
 // init
 buildOM(); buildOW(); buildCM();
-// default year filter: 2026 + current month
-oY='2026';
+// default filter: latest available week
 const oYearEl=document.getElementById('oYear');
-if(oYearEl){for(let o of oYearEl.options){if(o.value==='2026'){o.selected=true;break;}}}
+if(oYearEl && oYearEl.options.length){
+  const latestYear = oYearEl.options[oYearEl.options.length - 1].value;
+  oY = latestYear || '';
+  oYearEl.value = oY;
+}
 buildOM();
-oM=String(new Date().getMonth()+1);
-const oMonthEl=document.getElementById('oMonth');
-if(oMonthEl){for(let o of oMonthEl.options){if(o.value===oM){o.selected=true;break;}}}
 buildOW();
-// при выбранном месяце по умолчанию показывать в «Факт и план по периодам» вид по месяцам
-if(oM){ factGran='months'; oGran='month'; if(typeof _syncFactGranButtons==='function') _syncFactGranButtons(); }
+const oWeekEl=document.getElementById('oWeek');
+if(oWeekEl && oWeekEl.options.length > 1){
+  oW = oWeekEl.options[oWeekEl.options.length - 1].value;
+  oWeekEl.value = oW;
+}
+oM = '';
+const oMonthEl=document.getElementById('oMonth');
+if(oMonthEl) oMonthEl.value = '';
+factGran='weeks';
+oGran='week';
+if(typeof _syncFactGranButtons==='function') _syncFactGranButtons();
 renderOps();
 renderClosedDeals();
 renderFactTable();
