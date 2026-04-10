@@ -4995,25 +4995,34 @@ function renderPredWinRate(){
 // init
 buildOM(); buildOW(); buildCM();
 if(!applySharedFilters()){
-  // default filter: latest available week
+  // default filter: current month (with latest week inside it if available)
   const oYearEl=document.getElementById('oYear');
+  const now=new Date();
+  const currentYear=String(now.getFullYear());
+  const currentMonth=String(now.getMonth()+1);
   if(oYearEl && oYearEl.options.length){
-    const latestYear = oYearEl.options[oYearEl.options.length - 1].value;
-    oY = latestYear || '';
+    const years=Array.from(oYearEl.options).map(function(opt){ return opt.value; }).filter(Boolean);
+    const latestYear = years.length ? years[years.length - 1] : '';
+    oY = years.indexOf(currentYear)!==-1 ? currentYear : (latestYear || '');
     oYearEl.value = oY;
   }
   buildOM();
+  const oMonthEl=document.getElementById('oMonth');
+  if(oMonthEl){
+    const monthOptions=Array.from(oMonthEl.options).map(function(opt){ return opt.value; }).filter(Boolean);
+    if(monthOptions.indexOf(currentMonth)!==-1) oM = currentMonth;
+    else if(monthOptions.length) oM = monthOptions[monthOptions.length - 1];
+    else oM = '';
+    oMonthEl.value = oM;
+  }
   buildOW();
   const oWeekEl=document.getElementById('oWeek');
   if(oWeekEl && oWeekEl.options.length > 1){
     oW = oWeekEl.options[oWeekEl.options.length - 1].value;
     oWeekEl.value = oW;
   }
-  oM = '';
-  const oMonthEl=document.getElementById('oMonth');
-  if(oMonthEl) oMonthEl.value = '';
-  factGran='weeks';
-  oGran='week';
+  factGran='months';
+  oGran='month';
   if(typeof _syncFactGranButtons==='function') _syncFactGranButtons();
 }
 renderOps();
@@ -5022,11 +5031,27 @@ renderFactTable();
 renderEventsFactTable();
 renderPlanSection();
 saveSharedFilters();
-// default cohort view: 2026
-cY='2026';
+// default cohort filter: current month
 const cyEl=document.getElementById('cYear');
-if(cyEl){for(let o of cyEl.options){if(o.value==='2026'){o.selected=true;break;}}}
+const cmEl=document.getElementById('cMonth');
+const cNow=new Date();
+const cYear=String(cNow.getFullYear());
+const cMonth=String(cNow.getMonth()+1);
+if(cyEl){
+  const years=Array.from(cyEl.options).map(function(opt){ return opt.value; }).filter(Boolean);
+  const latestYear=years.length ? years[years.length - 1] : '';
+  cY = years.indexOf(cYear)!==-1 ? cYear : (latestYear || '');
+  cyEl.value = cY;
+}
 buildCM();
+if(cmEl){
+  const monthOptions=Array.from(cmEl.options).map(function(opt){ return opt.value; }).filter(Boolean);
+  if(monthOptions.indexOf(cMonth)!==-1) cM = cMonth;
+  else if(monthOptions.length) cM = monthOptions[monthOptions.length - 1];
+  else cM = '';
+  cmEl.value = cM;
+}
+if(typeof buildCW==='function') buildCW();
 // render all cohort sections immediately so data shows when tab is opened
 try{renderCohort();}catch(e){console.warn(e);}
 try{renderHsTab(hsTab);}catch(e){console.warn(e);}
