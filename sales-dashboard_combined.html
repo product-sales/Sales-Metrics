@@ -1280,7 +1280,7 @@ function setOGran(g){
   });
   // hide/show week selector when in non-week mode
   const wkSel=document.getElementById('oWeek');
-  if(wkSel)wkSel.parentElement&&(wkSel.style.display=g==='week'?'':'none');
+  if(wkSel)wkSel.parentElement&&(wkSel.style.display='');
   renderOps();
   renderFactTable();
   renderEventsFactTable();
