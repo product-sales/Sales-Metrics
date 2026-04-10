@@ -1632,6 +1632,7 @@ function renderFactPlanTable(){
     if(oY) return String(r.year)===String(oY);
     return true;
   });
+  var hasDivision = true;
   var total = rows.length;
   var totalPages = Math.max(1, Math.ceil(total / _factPlanPageSize));
   if(_factPlanPage > totalPages) _factPlanPage = totalPages;
@@ -1641,10 +1642,10 @@ function renderFactPlanTable(){
   function Rv(v){ if(!v || v<100) return ''; if(v>=1e9) return (v/1e9).toFixed(1)+'\u00a0млрд\u00a0\u20bd'; if(v>=1e6) return (v/1e6).toFixed(1)+'\u00a0млн\u00a0\u20bd'; return (v/1e3).toFixed(0)+'\u00a0тыс\u00a0\u20bd'; }
   // Фиксированные планы на месяц; для квартала ×3, для недели ×1/4
   var planMonth = { vol: (typeof PLAN_OPS_MONTH!=='undefined' && PLAN_OPS_MONTH.volume) ? PLAN_OPS_MONTH.volume : 80e6, demo: 40, pilot: 20, contract: (typeof PLAN_OPS_MONTH!=='undefined' && PLAN_OPS_MONTH.contract!=null) ? PLAN_OPS_MONTH.contract : 5 };
-  var head = '<thead><tr><th>Период</th>' + stages.map(function(s){ return '<th style="color:'+SCOL[s]+'">'+s+'<br><span style="font-size:11px;font-weight:500;color:var(--ink3)">факт / план</span></th>'; }).join('') + '</tr></thead>';
+  var head = '<thead><tr><th>Период</th>' + (hasDivision ? '<th>Направление</th>' : '') + stages.map(function(s){ return '<th style="color:'+SCOL[s]+'">'+s+'<br><span style="font-size:11px;font-weight:500;color:var(--ink3)">факт / план</span></th>'; }).join('') + '</tr></thead>';
   var body;
   if(!rows.length){
-    body = '<tbody><tr><td colspan="'+(stages.length+1)+'" style="text-align:center;color:#bbb;padding:20px;font-size:14px">Нет данных за выбранный период</td></tr></tbody>';
+    body = '<tbody><tr><td colspan="'+(stages.length+1+(hasDivision?1:0))+'" style="text-align:center;color:#bbb;padding:20px;font-size:14px">Нет данных за выбранный период</td></tr></tbody>';
   } else {
     var salesPlanYear = (typeof SALES_PLAN!=='undefined' && SALES_PLAN.year) ? SALES_PLAN.year : new Date().getFullYear();
     var salesPlanMonths = (typeof SALES_PLAN!=='undefined' && SALES_PLAN.months) ? SALES_PLAN.months : [];
@@ -1670,6 +1671,14 @@ function renderFactPlanTable(){
     }
     body = '<tbody>' + pageRows.map(function(r){
       var label = (factGran==='weeks' && r.label) ? r.label : (r.p || '');
+      var divText = r.division || 'Общее';
+      var tagStyle = '';
+      if (divText === 'Партнёры') tagStyle = 'background:#0ea5e9;color:#fff;';
+      else if (divText === 'Приоритетные проекты') tagStyle = 'background:#8b5cf6;color:#fff;';
+      else if (divText !== '—') tagStyle = 'background:#64748b;color:#fff;';
+      var divCell = hasDivision
+        ? '<td><span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.02em;'+tagStyle+'">'+divText+'</span></td>'
+        : '';
       var mult = 1;
       if((r.p||'').indexOf('Q')>=0) mult = 3;
       else if((r.p||'').length===10) mult = 1/4;
@@ -1693,7 +1702,7 @@ function renderFactPlanTable(){
         var planPart = planStr ? '<span class="fact-plan-plan">'+planStr+'</span>' : '';
         return '<td class="fact-plan-cell"><div class="fact-plan-fact">'+factPart+'</div>'+(planPart || '')+'</td>';
       }).join('');
-      return '<tr><td style="font-size:14px;font-weight:600">'+label+'</td>'+cells+'</tr>';
+      return '<tr><td style="font-size:14px;font-weight:600">'+label+'</td>'+divCell+cells+'</tr>';
     }).join('')+'</tbody>';
   }
   el.innerHTML = head+body;
