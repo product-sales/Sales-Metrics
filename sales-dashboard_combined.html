@@ -4993,11 +4993,23 @@ function renderPredWinRate(){
 // init
 buildOM(); buildOW(); buildCM();
 if(!applySharedFilters()){
-  // без автоподстановки периода: «Все годы», месяц/неделя/квартал пустые (как после «Сбросить»)
-  oY='';oM='';oW='';oQ='';
-  ['oYear','oMonth','oWeek','oQuarter'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  buildOM(); buildOW();
-  factGran='qtrs';
+  // по умолчанию: текущий календарный месяц (если в данных есть такой месяц)
+  var _n=new Date();
+  oY=String(_n.getFullYear());
+  oM=String(_n.getMonth()+1);
+  oW='';oQ='';
+  var _yEl=document.getElementById('oYear');
+  var _mEl=document.getElementById('oMonth');
+  var _wEl=document.getElementById('oWeek');
+  var _qEl=document.getElementById('oQuarter');
+  if(_yEl)_yEl.value=oY;
+  if(_qEl)_qEl.value='';
+  buildOM();
+  if(_mEl&&Array.from(_mEl.options).some(function(o){return o.value===oM;})){ _mEl.value=oM; }
+  else { oM=''; if(_mEl)_mEl.value=''; }
+  if(_wEl)_wEl.value='';
+  buildOW();
+  factGran=oM?'months':'qtrs';
   oGran='week';
   if(typeof _syncFactGranButtons==='function') _syncFactGranButtons();
   ['Week','Month','Quarter'].forEach(function(n){
